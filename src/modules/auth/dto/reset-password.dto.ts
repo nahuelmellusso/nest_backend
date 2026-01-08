@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
-import { Match } from '../../../decorators/match.decorator';
+import { IsNotEmpty, IsString, MinLength } from "class-validator";
+import { Match } from "../../../decorators/match.decorator";
 
 export class ResetPasswordDto {
   @IsNotEmpty()
@@ -9,11 +9,11 @@ export class ResetPasswordDto {
   @IsNotEmpty()
   @IsString()
   @MinLength(5)
-  readonly newPassword: string;
+  readonly password: string;
 
   @IsNotEmpty()
   @IsString()
   @MinLength(5)
-  @Match('newPassword', { message: 'Passwords do not match' })
-  readonly newPasswordConfirm: string;
+  @Match("password", { message: "Passwords do not match" })
+  readonly passwordConfirm: string;
 }
