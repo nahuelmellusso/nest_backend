@@ -1,44 +1,47 @@
-import { Exclude } from 'class-transformer';
+import { Exclude } from "class-transformer";
 import {
   Table,
   Column,
   Model,
   DataType,
   AllowNull,
-  Unique,
   Default,
   CreatedAt,
   UpdatedAt,
   DeletedAt,
   PrimaryKey,
   AutoIncrement,
-} from 'sequelize-typescript';
+} from "sequelize-typescript";
 
 @Table({
-  tableName: 'users', // Especificar el nombre de la tabla
-  timestamps: true, // Habilitar timestamps para createdAt y updatedAt
-  paranoid: true, // Habilitar soft deletes
+  tableName: "users",
+  timestamps: true,
+  paranoid: true,
+  underscored: true,
   indexes: [
     {
       unique: true,
-      fields: ['email'],
+      fields: ["email"],
     },
   ],
+  defaultScope: {
+    attributes: { exclude: ["password"] },
+  },
 })
-export class User extends Model {
+export class User extends Model<User> {
   @PrimaryKey
   @AutoIncrement
   @Column({
     type: DataType.INTEGER,
   })
   @Exclude()
-  id: number; // ID autoincremental
+  id: number;
 
   @AllowNull(false)
   @Column({
     type: DataType.STRING,
     validate: {
-      notEmpty: true, // No permitir valores vacíos
+      notEmpty: true,
     },
   })
   name: string;
@@ -47,7 +50,7 @@ export class User extends Model {
   @Column({
     type: DataType.STRING,
     validate: {
-      isEmail: true, // Valida que el valor sea un correo electrónico
+      isEmail: true,
       notEmpty: true,
     },
   })
@@ -77,6 +80,24 @@ export class User extends Model {
   })
   isEmailVerified: boolean;
 
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  avatarFilename: string | null;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  primaryPosition: string | null;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  secondaryPosition: string | null;
+
   @CreatedAt
   @Column({
     type: DataType.DATE,
@@ -93,5 +114,5 @@ export class User extends Model {
   @Column({
     type: DataType.DATE,
   })
-  deletedAt: Date; // Columna para soft delete
+  deletedAt: Date;
 }
