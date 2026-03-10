@@ -10,7 +10,6 @@ import { EmailModule } from "./modules/email/email.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { TypedEventEmitterModule } from "./event-emitter/typed-event-emitter.module";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
 
 @Module({
@@ -21,7 +20,7 @@ import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
     I18nModule.forRoot({
       fallbackLanguage: "en",
       loaderOptions: {
-        path: path.join(__dirname, "/lang/"),
+        path: path.join(__dirname, "lang"),
         watch: true,
       },
       resolvers: [{ use: QueryResolver, options: ["lang"] }, AcceptLanguageResolver],
