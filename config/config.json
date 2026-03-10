@@ -1,9 +1,9 @@
 {
   "development": {
-    "username": "root",
-    "password": "mgBVFzah",
-    "database": "championship",
-    "host": "localhost",
+    "username": "nahue",
+    "password": "nahue",
+    "database": "tournaments",
+    "host": "127.0.0.1",
     "dialect": "mysql"
   },
   "test": {
