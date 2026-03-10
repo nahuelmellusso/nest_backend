@@ -49,4 +49,8 @@ Thumbs.db
 *.flv
 *.mov
 *.wmv
+uploads/*
+
+*:Zone.Identifier
+
 
