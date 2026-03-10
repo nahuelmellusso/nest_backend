@@ -28,7 +28,7 @@ export class AuthService {
   }*/
 
   async signIn(signInDto: SignInDto) {
-    const user = await this.usersService.findByEmail(signInDto.email);
+    const user = await this.usersService.findByEmail(signInDto.email, true);
     const isMatch = await bcrypt.compare(signInDto.password, user.password);
 
     if (!isMatch) {
@@ -50,8 +50,7 @@ export class AuthService {
       const user = await this.usersService.findByEmail(payload.email);
 
       if (user) {
-        user.isEmailVerified = true;
-        await this.usersService.update(user.id, user);
+        await this.usersService.markEmailVerified(user.id);
         return true;
       }
       return false;
