@@ -19,16 +19,7 @@ export class TournamentsService {
     createTournamentDto: CreateTournamentDto,
     file?: Express.Multer.File,
   ): Promise<Tournament> {
-    const existingTournament = await this.tournamentModel.findOne({
-      // @todo check
-      where: {
-        slug: createTournamentDto.slug,
-      },
-    });
 
-    if (existingTournament) {
-      throw new ConflictException("Tournament slug already exists");
-    }
     const slug = await this.generateUniqueSlug(createTournamentDto.name);
 
     const tournament = await this.tournamentModel.create({
