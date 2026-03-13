@@ -12,9 +12,8 @@ import {
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { SignInDto } from "./dto/sign-in.dto";
-import { AuthGuard } from "../../guards/auth.guard";
-import { SignInValidationPipe } from "./pipes/SignInValidationPipe.pipe";
-import { TypedEventEmitter } from "src/event-emitter/typed-event-emitter.class";
+import { AuthGuard } from "@/guards/auth.guard";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { Response } from "express";

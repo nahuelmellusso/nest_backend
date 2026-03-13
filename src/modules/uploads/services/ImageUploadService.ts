@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { STORAGE } from "@/storage/storage.module";
 import type { StorageProvider } from "@/storage/storage.provider";
 import sharp from "sharp";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from "crypto";
 
 type UploadImageOptions = {
   folder: string;
@@ -37,7 +37,7 @@ export class ImageUploadService {
       .webp({ quality: options.quality ?? 82 })
       .toBuffer();
 
-    const fileName = `${uuid()}.webp`;
+    const fileName = `${randomUUID()}.webp`;
 
     return this.storage.upload({
       buffer: outputBuffer,

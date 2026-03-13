@@ -16,10 +16,10 @@ import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { User } from "./user.entity";
-import { TypedEventEmitter } from "../../event-emitter/typed-event-emitter.class";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
 import { ListUsersQueryDto } from "./dto/list-users.query";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { MAX_AVATAR_BYTES, ALLOWED_MIME } from "../../constants/constants";
+import { MAX_AVATAR_BYTES, ALLOWED_MIME } from "@/constants/constants";
 /* typed-event-emitter.class'; */
 
 @Controller("users")

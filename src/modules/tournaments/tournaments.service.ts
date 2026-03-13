@@ -5,7 +5,7 @@ import { Tournament } from "./tournament.entity";
 import { CreateTournamentDto } from "./dto/create-tournament.dto";
 import { UpdateTournamentDto } from "./dto/update-tournament.dto";
 import { QueryTournamentDto } from "./dto/query-tournament.dto";
-import { TournamentImageService } from "@/modules/tournaments/tournametImage.service";
+import { TournamentImageService } from "@/modules/tournaments/tournamentImage.service";
 import { generateSlug } from "@/utils/slug.util";
 @Injectable()
 export class TournamentsService {
@@ -19,7 +19,6 @@ export class TournamentsService {
     createTournamentDto: CreateTournamentDto,
     file?: Express.Multer.File,
   ): Promise<Tournament> {
-
     const slug = await this.generateUniqueSlug(createTournamentDto.name);
 
     const tournament = await this.tournamentModel.create({
@@ -33,7 +32,7 @@ export class TournamentsService {
     if (file) {
       const stored = await this.tournamentImageService.upload(tournament.id, file);
       tournament.image = stored.key;
-      tournament.save();
+      await tournament.save();
     }
 
     return tournament;
