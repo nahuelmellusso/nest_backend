@@ -40,12 +40,7 @@ export class UsersService {
 
     const { primaryPosition, secondaryPosition, ...rest } = createUserDto;
 
-    let avatarFilename: string | null = createUserDto.avatarFilename ?? null;
-
-    if (file) {
-      const stored = await this.userAvatarService.uploadAvatar(file);
-      avatarFilename = stored.key;
-    }
+    const avatarFilename: string | null = createUserDto.avatarFilename ?? null;
 
     const createdUser = await this.userRepository.create({
       ...rest,
@@ -54,6 +49,11 @@ export class UsersService {
       primaryPosition: primaryPosition ?? null,
       secondaryPosition: secondaryPosition ?? null,
     });
+
+    if (file) {
+      const stored = await this.userAvatarService.uploadAvatar(createdUser.id, file);
+      createdUser.avatarFilename = stored.key;
+    }
 
     return {
       success: true,
@@ -162,7 +162,7 @@ export class UsersService {
     if (file) {
       await this.userAvatarService.deleteAvatarIfExists(user.avatarFilename);
 
-      const stored = await this.userAvatarService.uploadAvatar(file);
+      const stored = await this.userAvatarService.uploadAvatar(user.id, file);
       user.avatarFilename = stored.key;
     }
 
