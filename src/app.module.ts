@@ -13,6 +13,8 @@ import { TypedEventEmitterModule } from "./event-emitter/typed-event-emitter.mod
 import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
 import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
 import { SeasonsModule } from "@/modules/seasons/seasons.module";
+import { TeamsModule } from "@/modules/teams/teams.module";
+import { StagesModule } from "@/modules/stages/stages.module";
 import { Tenant } from "@/modules/tenants/tenant.entity";
 import { TenantDomains } from "@/modules/tenant-domains/tenant-domains.entity";
 import { TenantResolverMiddleware } from "@/modules/tenancy/middleware/tenant-resolver.middleware";
@@ -24,6 +26,8 @@ import { TenantResolverMiddleware } from "@/modules/tenancy/middleware/tenant-re
     AuthModule,
     SeasonsModule,
     TournamentsModule,
+    TeamsModule,
+    StagesModule,
     I18nModule.forRoot({
       fallbackLanguage: "en",
       loaderOptions: {
