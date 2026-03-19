@@ -3,7 +3,7 @@ import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
-
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
 describe("AuthService", () => {
   let service: AuthService;
 
@@ -37,6 +37,14 @@ describe("AuthService", () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: TenantContextService,
+          useValue: {
+            getTenantId: jest.fn(),
+            setTenantId: jest.fn(),
+            clear: jest.fn(),
+          },
         },
       ],
     }).compile();

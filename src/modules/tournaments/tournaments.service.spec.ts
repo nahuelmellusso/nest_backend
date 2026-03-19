@@ -6,16 +6,20 @@ jest.mock("@/modules/tournaments/tournamentImage.service", () => {
     })),
   };
 });
-import { ConflictException, NotFoundException } from "@nestjs/common";
+
+import { ConflictException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/sequelize";
 import { Op } from "sequelize";
 import { TournamentsService } from "./tournaments.service";
 import { Tournament } from "./tournament.entity";
 import { TournamentImageService } from "@/modules/tournaments/tournamentImage.service";
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { mockTenantContextService } from "@/test/helpers/mock-tenant-context.service";
 
 describe("TournamentsService", () => {
   let service: TournamentsService;
+  let tenantContextService: jest.Mocked<TenantContextService>;
 
   const mockTournamentModel = {
     findOne: jest.fn(),
@@ -33,6 +37,9 @@ describe("TournamentsService", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
+    tenantContextService = mockTenantContextService();
+    tenantContextService.getTenantId.mockReturnValue(1);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TournamentsService,
@@ -44,10 +51,18 @@ describe("TournamentsService", () => {
           provide: TournamentImageService,
           useValue: mockTournamentImageService,
         },
+        {
+          provide: TenantContextService,
+          useValue: tenantContextService,
+        },
       ],
     }).compile();
 
     service = module.get<TournamentsService>(TournamentsService);
+  });
+
+  it("should be defined", () => {
+    expect(service).toBeDefined();
   });
 
   describe("create", () => {
@@ -67,9 +82,12 @@ describe("TournamentsService", () => {
         type: dto.type,
         country: dto.country,
         isActive: dto.isActive,
+        tenantId: 1,
       });
 
       const result = await service.create(dto);
+
+      expect(tenantContextService.getTenantId).toHaveBeenCalled();
 
       expect(mockTournamentModel.findAll).toHaveBeenCalledWith({
         where: {
@@ -87,6 +105,7 @@ describe("TournamentsService", () => {
         type: dto.type,
         country: dto.country,
         isActive: true,
+        tenantId: 1,
       });
 
       expect(result.slug).toBe("copa-libertadores");
@@ -108,15 +127,30 @@ describe("TournamentsService", () => {
         id: 1,
         name: dto.name,
         slug: "copa-libertadores-2",
+        tenantId: 1,
       });
 
       const result = await service.create(dto);
 
+      expect(tenantContextService.getTenantId).toHaveBeenCalled();
+
+      expect(mockTournamentModel.findAll).toHaveBeenCalledWith({
+        where: {
+          slug: {
+            [Op.like]: "copa-libertadores%",
+          },
+        },
+        attributes: ["slug"],
+        paranoid: false,
+      });
+
       expect(mockTournamentModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
           slug: "copa-libertadores-2",
+          tenantId: 1,
         }),
       );
+
       expect(result.slug).toBe("copa-libertadores-2");
     });
 
@@ -138,6 +172,7 @@ describe("TournamentsService", () => {
         name: dto.name,
         slug: "premier-league",
         image: null,
+        tenantId: 1,
         save,
       };
 
@@ -153,6 +188,24 @@ describe("TournamentsService", () => {
       expect(result.image).toBe("tournaments/10/image.png");
       expect(save).toHaveBeenCalled();
     });
+
+    it("should throw InternalServerErrorException when tenant context is missing", async () => {
+      const dto = {
+        name: "Copa Libertadores",
+        type: "league",
+        country: "AR",
+      } as any;
+
+      tenantContextService.getTenantId.mockReturnValue(null as any);
+      mockTournamentModel.findAll.mockResolvedValue([]);
+
+      const promise = service.create(dto);
+
+      await expect(promise).rejects.toThrow(InternalServerErrorException);
+      await expect(promise).rejects.toThrow("Tenant context not available");
+
+      expect(mockTournamentModel.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("findAll", () => {
@@ -164,8 +217,12 @@ describe("TournamentsService", () => {
 
       const result = await service.findAll({ page: 1, limit: 10 } as any);
 
+      expect(tenantContextService.getTenantId).toHaveBeenCalled();
+
       expect(mockTournamentModel.findAndCountAll).toHaveBeenCalledWith({
-        where: {},
+        where: {
+          tenantId: 1,
+        },
         offset: 0,
         limit: 10,
         order: [["createdAt", "DESC"]],
@@ -197,8 +254,11 @@ describe("TournamentsService", () => {
         isActive: true,
       } as any);
 
+      expect(tenantContextService.getTenantId).toHaveBeenCalled();
+
       expect(mockTournamentModel.findAndCountAll).toHaveBeenCalledWith({
         where: {
+          tenantId: 1,
           [Op.or]: [{ name: { [Op.like]: "%liber%" } }, { slug: { [Op.like]: "%liber%" } }],
           type: "league",
           country: "AR",
@@ -213,16 +273,25 @@ describe("TournamentsService", () => {
 
   describe("findById", () => {
     it("should return tournament if found", async () => {
-      const tournament = { id: 1, name: "Copa" };
-      mockTournamentModel.findByPk.mockResolvedValue(tournament);
+      const tournament = { id: 1, name: "Copa", tenantId: 1 };
+      mockTournamentModel.findOne.mockResolvedValue(tournament);
 
       const result = await service.findById(1);
+
+      expect(tenantContextService.getTenantId).toHaveBeenCalled();
+
+      expect(mockTournamentModel.findOne).toHaveBeenCalledWith({
+        where: {
+          id: 1,
+          tenantId: 1,
+        },
+      });
 
       expect(result).toBe(tournament);
     });
 
     it("should throw NotFoundException if tournament does not exist", async () => {
-      mockTournamentModel.findByPk.mockResolvedValue(null);
+      mockTournamentModel.findOne.mockResolvedValue(null);
 
       await expect(service.findById(999)).rejects.toThrow(NotFoundException);
     });
@@ -230,14 +299,17 @@ describe("TournamentsService", () => {
 
   describe("findBySlug", () => {
     it("should return tournament if found", async () => {
-      const tournament = { id: 1, slug: "copa" };
+      const tournament = { id: 1, slug: "copa", tenantId: 1 };
       mockTournamentModel.findOne.mockResolvedValue(tournament);
 
       const result = await service.findBySlug("copa");
 
       expect(mockTournamentModel.findOne).toHaveBeenCalledWith({
-        where: { slug: "copa" },
+        where: {
+          slug: "copa",
+        },
       });
+
       expect(result).toBe(tournament);
     });
 
@@ -260,6 +332,7 @@ describe("TournamentsService", () => {
         id: 1,
         slug: "existing-slug",
         image: null,
+        tenantId: 1,
         update: jest.fn().mockResolvedValue({
           id: 1,
           ...updateDto,
@@ -286,15 +359,22 @@ describe("TournamentsService", () => {
       const currentTournament = {
         id: 1,
         slug: "old-slug",
+        tenantId: 1,
         update: jest.fn(),
       };
 
       jest.spyOn(service, "findById").mockResolvedValue(currentTournament as any);
-      mockTournamentModel.findOne.mockResolvedValue({ id: 2, slug: "new-slug" });
+      mockTournamentModel.findOne.mockResolvedValue({ id: 2, slug: "new-slug", tenantId: 1 });
 
       await expect(service.update(1, { slug: "new-slug" } as any)).rejects.toThrow(
         ConflictException,
       );
+
+      expect(mockTournamentModel.findOne).toHaveBeenCalledWith({
+        where: {
+          slug: "new-slug",
+        },
+      });
     });
 
     it("should replace image when file is provided", async () => {
@@ -304,6 +384,7 @@ describe("TournamentsService", () => {
         id: 1,
         slug: "old-slug",
         image: "old/image.png",
+        tenantId: 1,
         update: jest.fn().mockResolvedValue({
           id: 1,
           image: "new/image.png",
@@ -333,7 +414,7 @@ describe("TournamentsService", () => {
   describe("remove", () => {
     it("should destroy tournament", async () => {
       const destroy = jest.fn().mockResolvedValue(undefined);
-      const tournament = { id: 1, destroy };
+      const tournament = { id: 1, destroy, tenantId: 1 };
 
       jest.spyOn(service, "findById").mockResolvedValue(tournament as any);
 
