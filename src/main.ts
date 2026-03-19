@@ -6,7 +6,7 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import { join } from "path";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import compression from "compression";
+import * as compression from "compression";
 import { VersioningType } from "@nestjs/common";
 
 async function bootstrap() {

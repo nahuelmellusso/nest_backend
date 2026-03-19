@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from "@nestjs/common";
 import * as path from "path";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -11,12 +11,19 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { TypedEventEmitterModule } from "./event-emitter/typed-event-emitter.module";
 import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
+import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
+import { SeasonsModule } from "@/modules/seasons/seasons.module";
+import { Tenant } from "@/modules/tenants/tenant.entity";
+import { TenantDomains } from "@/modules/tenant-domains/tenant-domains.entity";
+import { TenantResolverMiddleware } from "@/modules/tenancy/middleware/tenant-resolver.middleware";
 
 @Module({
   imports: [
     DatabaseModule,
     UsersModule,
     AuthModule,
+    SeasonsModule,
+    TournamentsModule,
     I18nModule.forRoot({
       fallbackLanguage: "en",
       loaderOptions: {
@@ -42,10 +49,22 @@ import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
         synchronize: false,
       }),
     }),
+    SequelizeModule.forFeature([Tenant, TenantDomains]),
     EventEmitterModule.forRoot(),
     TypedEventEmitterModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TenantResolverMiddleware)
+      .exclude(
+        { path: "health", method: RequestMethod.ALL },
+        { path: "swagger", method: RequestMethod.ALL },
+        { path: "swagger/(.*)", method: RequestMethod.ALL },
+      )
+      .forRoutes({ path: "*", method: RequestMethod.ALL });
+  }
+}
