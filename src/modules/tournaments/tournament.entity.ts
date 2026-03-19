@@ -1,5 +1,15 @@
-import { Table, Column, Model, DataType, Default, AllowNull, Unique } from "sequelize-typescript";
+import {
+  Table,
+  Column,
+  Model,
+  DataType,
+  Default,
+  AllowNull,
+  Unique,
+  HasMany,
+} from "sequelize-typescript";
 import { TournamentType } from "@/enums/tournament-type.enum";
+import { Season } from "@/modules/seasons/season.entity";
 
 @Table({
   tableName: "tournaments",
@@ -8,6 +18,16 @@ import { TournamentType } from "@/enums/tournament-type.enum";
   underscored: true,
 })
 export class Tournament extends Model<Tournament> {
+  @HasMany(() => Season)
+  declare seasons: Season[];
+
+  @Column({
+    type: DataType.INTEGER.UNSIGNED,
+    allowNull: false,
+    field: "tenant_id",
+  })
+  declare tenantId: number;
+
   @AllowNull(false)
   @Column({
     type: DataType.STRING(120),

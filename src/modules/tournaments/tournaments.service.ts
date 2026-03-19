@@ -7,13 +7,18 @@ import { UpdateTournamentDto } from "./dto/update-tournament.dto";
 import { QueryTournamentDto } from "./dto/query-tournament.dto";
 import { TournamentImageService } from "@/modules/tournaments/tournamentImage.service";
 import { generateSlug } from "@/utils/slug.util";
+import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
 @Injectable()
-export class TournamentsService {
+export class TournamentsService extends TenantScopedService {
   constructor(
     @InjectModel(Tournament)
     private readonly tournamentModel: typeof Tournament,
     private readonly tournamentImageService: TournamentImageService,
-  ) {}
+    tenantContextService: TenantContextService,
+  ) {
+    super(tenantContextService);
+  }
 
   async create(
     createTournamentDto: CreateTournamentDto,
@@ -21,12 +26,15 @@ export class TournamentsService {
   ): Promise<Tournament> {
     const slug = await this.generateUniqueSlug(createTournamentDto.name);
 
+    const tenantId = this.getCurrentTenantId();
+
     const tournament = await this.tournamentModel.create({
       name: createTournamentDto.name,
       slug,
       type: createTournamentDto.type,
       country: createTournamentDto.country,
       isActive: createTournamentDto.isActive ?? true,
+      tenantId,
     });
 
     if (file) {
@@ -65,7 +73,7 @@ export class TournamentsService {
     }
 
     const { rows, count } = await this.tournamentModel.findAndCountAll({
-      where,
+      where: this.withTenantWhere(where),
       offset,
       limit,
       order: [["createdAt", "DESC"]],
@@ -83,7 +91,9 @@ export class TournamentsService {
   }
 
   async findById(id: number): Promise<Tournament> {
-    const tournament = await this.tournamentModel.findByPk(id);
+    const tournament = await this.tournamentModel.findOne({
+      where: this.withTenantWhere({ id }),
+    });
 
     if (!tournament) {
       throw new NotFoundException(`Tournament with ID ${id} not found`);
