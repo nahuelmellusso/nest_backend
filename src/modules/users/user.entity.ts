@@ -9,9 +9,11 @@ import {
   CreatedAt,
   UpdatedAt,
   DeletedAt,
+  ForeignKey,
   PrimaryKey,
   AutoIncrement,
 } from "sequelize-typescript";
+import { Tenant } from "@/modules/tenants/tenant.entity";
 
 @Table({
   tableName: "users",
@@ -36,6 +38,14 @@ export class User extends Model<User> {
   })
   @Exclude()
   id: number;
+
+  @ForeignKey(() => Tenant)
+  @Column({
+    field: "tenant_id",
+    type: DataType.INTEGER.UNSIGNED,
+    allowNull: false,
+  })
+  tenantId: number;
 
   @AllowNull(false)
   @Column({

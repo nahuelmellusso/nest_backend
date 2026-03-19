@@ -11,65 +11,117 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { ApiResponse, Paginated } from "../types";
 import { ListUsersQueryDto } from "./dto/list-users.query";
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { UserAvatarService } from "./avatar.service";
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
+
+type CreateUserData = {
+  name: string;
+  email: string;
+  password: string;
+  tenantId: number;
+  isAdmin?: boolean;
+  isEmailVerified?: boolean;
+  avatarFilename?: string | null;
+  primaryPosition?: string | null;
+  secondaryPosition?: string | null;
+};
 
 @Injectable()
-export class UsersService {
+export class UsersService extends TenantScopedService {
   constructor(
     @Inject("USER_REPOSITORY")
-    private userRepository: typeof User,
+    private readonly userRepository: typeof User,
     private readonly userAvatarService: UserAvatarService,
-  ) {}
+    tenantContextService: TenantContextService,
+  ) {
+    super(tenantContextService);
+  }
 
   async create(createUserDto: CreateUserDto, file?: Express.Multer.File): Promise<ApiResponse> {
-    const existingUser = await this.findByEmail(createUserDto.email);
+    const tenantId = this.getCurrentTenantId();
+
+    const existingUser = await this.findByEmailInTenant(createUserDto.email, tenantId);
+
     if (existingUser) {
-      throw new ConflictException("Email already exists");
+      throw new ConflictException("Email already exists in this tenant");
     }
 
-    if (
-      createUserDto.primaryPosition &&
-      createUserDto.secondaryPosition &&
-      createUserDto.primaryPosition === createUserDto.secondaryPosition
-    ) {
-      throw new BadRequestException("secondaryPosition must be different than primaryPosition");
-    }
-
-    const hashedPassword = await this.hashPassword(createUserDto.password);
-
-    const { primaryPosition, secondaryPosition, ...rest } = createUserDto;
-
-    const avatarFilename: string | null = createUserDto.avatarFilename ?? null;
-
-    const createdUser = await this.userRepository.create({
-      ...rest,
-      password: hashedPassword,
-      avatarFilename,
-      primaryPosition: primaryPosition ?? null,
-      secondaryPosition: secondaryPosition ?? null,
+    const createdUser = await this.createUser({
+      name: createUserDto.name,
+      email: createUserDto.email,
+      password: createUserDto.password,
+      tenantId,
+      isAdmin: createUserDto.isAdmin ?? false,
+      isEmailVerified: createUserDto.isEmailVerified ?? false,
+      avatarFilename: createUserDto.avatarFilename ?? null,
+      primaryPosition: createUserDto.primaryPosition ?? null,
+      secondaryPosition: createUserDto.secondaryPosition ?? null,
     });
 
     if (file) {
       const stored = await this.userAvatarService.uploadAvatar(createdUser.id, file);
       createdUser.avatarFilename = stored.key;
+      await createdUser.save();
     }
 
     return {
       success: true,
-      data: {},
-      message: "",
+      data: {
+        user: {
+          id: createdUser.id,
+          name: createdUser.name,
+          email: createdUser.email,
+          tenantId: createdUser.tenantId,
+        },
+      },
+      message: "User created successfully",
     };
   }
 
+  async createUser(data: CreateUserData, transaction?: Transaction): Promise<User> {
+    if (!data.tenantId) {
+      throw new BadRequestException("tenantId is required");
+    }
+
+    if (
+      data.primaryPosition &&
+      data.secondaryPosition &&
+      data.primaryPosition === data.secondaryPosition
+    ) {
+      throw new BadRequestException("secondaryPosition must be different than primaryPosition");
+    }
+
+    const hashedPassword = await this.hashPassword(data.password);
+
+    return this.userRepository.create(
+      {
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        tenantId: data.tenantId,
+        isAdmin: data.isAdmin ?? false,
+        isEmailVerified: data.isEmailVerified ?? false,
+        avatarFilename: data.avatarFilename ?? null,
+        primaryPosition: data.primaryPosition ?? null,
+        secondaryPosition: data.secondaryPosition ?? null,
+      },
+      { transaction },
+    );
+  }
+
   async findAll(query: ListUsersQueryDto): Promise<Paginated<User>> {
+    const tenantId = this.getCurrentTenantId();
     const page = query.page ?? 1;
     const perPage = query.perPage ?? 10;
 
     const offset = (page - 1) * perPage;
     const limit = perPage;
 
-    const where: any = {};
+    const where: any = {
+      tenantId,
+    };
 
     if (query.search?.trim()) {
       const s = `%${query.search.trim()}%`;
@@ -99,8 +151,42 @@ export class UsersService {
     };
   }
 
-  async findById(id: number): Promise<User> {
-    const user = await this.userRepository.findByPk(id);
+  async findById(id: number, withPassword = false): Promise<User> {
+    const tenantId = this.getCurrentTenantId();
+
+    const attributes = withPassword
+      ? [
+          "id",
+          "email",
+          "name",
+          "password",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ]
+      : [
+          "id",
+          "email",
+          "name",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ];
+
+    const user = await this.userRepository.findOne({
+      where: { id, tenantId },
+      attributes,
+    });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -109,21 +195,98 @@ export class UsersService {
     return user;
   }
 
+  async findByIdInTenant(id: number, tenantId: number, withPassword = false): Promise<User> {
+    const attributes = withPassword
+      ? [
+          "id",
+          "email",
+          "name",
+          "password",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ]
+      : [
+          "id",
+          "email",
+          "name",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ];
+
+    const user = await this.userRepository.findOne({
+      where: { id, tenantId },
+      attributes,
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found in tenant ${tenantId}`);
+    }
+
+    return user;
+  }
+
   async findByEmail(email: string, withPassword = false): Promise<User | null> {
-    const attributes = withPassword ? ["id", "email", "name", "password"] : ["id", "email", "name"];
+    const tenantId = this.getCurrentTenantId();
+
+    return this.findByEmailInTenant(email, tenantId, withPassword);
+  }
+
+  async findByEmailInTenant(
+    email: string,
+    tenantId: number,
+    withPassword = false,
+    transaction?: Transaction,
+  ): Promise<User | null> {
+    const attributes = withPassword
+      ? [
+          "id",
+          "email",
+          "name",
+          "password",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ]
+      : [
+          "id",
+          "email",
+          "name",
+          "tenantId",
+          "isAdmin",
+          "isEmailVerified",
+          "avatarFilename",
+          "primaryPosition",
+          "secondaryPosition",
+          "createdAt",
+          "updatedAt",
+        ];
 
     return this.userRepository.findOne({
-      where: { email },
+      where: { email, tenantId },
       attributes,
+      transaction,
     });
   }
 
   async update(id: number, updateUserDto: UpdateUserDto, file?: Express.Multer.File) {
-    const user = await this.findById(id);
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
+    const user = await this.findById(id, true);
 
     if (
       updateUserDto.primaryPosition &&
@@ -133,27 +296,32 @@ export class UsersService {
       throw new BadRequestException("secondaryPosition must be different than primaryPosition");
     }
 
-    // Email unique check
     if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.findByEmail(updateUserDto.email);
+      const existingUser = await this.findByEmailInTenant(updateUserDto.email, user.tenantId);
+
       if (existingUser) {
-        throw new ConflictException("Email already exists");
+        throw new ConflictException("Email already exists in this tenant");
       }
+
       user.email = updateUserDto.email;
     }
 
     if (updateUserDto.password) {
-      const saltOrRounds = 10;
-      user.password = await bcrypt.hash(updateUserDto.password, saltOrRounds);
+      user.password = await this.hashPassword(updateUserDto.password);
     }
 
-    if (updateUserDto.name) {
+    if (updateUserDto.name !== undefined) {
       user.name = updateUserDto.name;
     }
 
     if (updateUserDto.isEmailVerified !== undefined) {
       user.isEmailVerified = updateUserDto.isEmailVerified;
     }
+
+    if (updateUserDto.isAdmin !== undefined) {
+      user.isAdmin = updateUserDto.isAdmin;
+    }
+
     if (updateUserDto.removeAvatar === true) {
       await this.userAvatarService.deleteAvatarIfExists(user.avatarFilename);
       user.avatarFilename = null;
@@ -181,7 +349,7 @@ export class UsersService {
 
   async hashPassword(password: string): Promise<string> {
     const saltOrRounds = 10;
-    return await bcrypt.hash(password, saltOrRounds);
+    return bcrypt.hash(password, saltOrRounds);
   }
 
   private buildAvatarUrl(key?: string | null) {
@@ -193,13 +361,12 @@ export class UsersService {
 
     const bucket = process.env.AWS_S3_BUCKET;
     const region = process.env.AWS_REGION;
+
     return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
   }
 
   async markEmailVerified(userId: number): Promise<void> {
-    const user = await this.findById(userId);
-    if (!user) throw new NotFoundException(`User with ID ${userId} not found`);
-
+    const user = await this.findById(userId, true);
     user.isEmailVerified = true;
     await user.save();
   }

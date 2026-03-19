@@ -4,57 +4,63 @@ import * as bcrypt from "bcrypt";
 import { JwtService } from "@nestjs/jwt";
 import { SignInDto } from "./dto/sign-in.dto";
 import { ConfigService } from "@nestjs/config";
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
 
 @Injectable()
-export class AuthService {
+export class AuthService extends TenantScopedService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private configService: ConfigService,
-  ) {}
-
-  /*  async signIn(signInDto: SignInDto) {
-    const user = await this.usersService.findByEmail(signInDto.email);
-    const isMatch = await bcrypt.compare(signInDto.password, user.password);
-
-    if (!isMatch) {
-      throw new UnauthorizedException();
-    }
-
-    const payload = { sub: user.id, username: user.email };
-    return {
-      access_token: await this.jwtService.signAsync(payload),
-    };
-  }*/
+    private readonly configService: ConfigService,
+    tenantContextService: TenantContextService,
+  ) {
+    super(tenantContextService);
+  }
 
   async signIn(signInDto: SignInDto) {
     const user = await this.usersService.findByEmail(signInDto.email, true);
     const isMatch = await bcrypt.compare(signInDto.password, user.password);
 
     if (!isMatch) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException("Invalid credentials");
     }
 
-    const payload = { sub: user.id, username: user.email };
+    const tenantId = this.getCurrentTenantId();
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      tenantId,
+    };
 
     const accessToken = await this.jwtService.signAsync(payload);
 
-    return { accessToken }; // mejor camelCase
+    return { accessToken };
   }
 
-  async verifyEmail(token: string) {
+  async verifyEmail(token: string): Promise<boolean> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>("JWT_SECRET"),
       });
-      const user = await this.usersService.findByEmail(payload.email);
 
-      if (user) {
-        await this.usersService.markEmailVerified(user.id);
-        return true;
+      const tenantIdFromContext = this.getCurrentTenantId();
+
+      if (payload.tenantId !== tenantIdFromContext) {
+        return false;
       }
-      return false;
-    } catch (e) {
+
+      const user = await this.usersService.findById(payload.sub);
+
+      if (!user) {
+        return false;
+      }
+
+      await this.usersService.markEmailVerified(user.id);
+
+      return true;
+    } catch {
       return false;
     }
   }
@@ -65,15 +71,23 @@ export class AuthService {
         secret: this.configService.get<string>("JWT_SECRET"),
       });
 
-      const user = await this.usersService.findByEmail(payload.email);
+      const tenantIdFromContext = this.getCurrentTenantId();
+
+      if (payload.tenantId !== tenantIdFromContext) {
+        return false;
+      }
+
+      const user = await this.usersService.findById(payload.sub, true);
+
       if (!user) {
         return false;
       }
 
       user.password = await this.usersService.hashPassword(newPassword);
       await user.save();
+
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

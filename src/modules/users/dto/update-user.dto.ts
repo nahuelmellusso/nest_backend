@@ -29,6 +29,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsBoolean()
+  isAdmin?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isEmailVerified?: boolean;
 
   @IsOptional()

@@ -6,10 +6,12 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsInt,
   MinLength,
 } from "class-validator";
-import { Match } from "../../../decorators/match.decorator";
-import { FOOTBALL_POSITIONS, FootballPosition } from "../../../constants/constants";
+import { Type } from "class-transformer";
+import { Match } from "@/decorators/match.decorator";
+import { FOOTBALL_POSITIONS, FootballPosition } from "@/constants/constants";
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -30,6 +32,14 @@ export class CreateUserDto {
   @MinLength(5)
   @Match("password", { message: "Passwords do not match" })
   readonly passwordConfirm: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isAdmin?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isEmailVerified?: boolean;
 
   @IsOptional()
   @IsString()

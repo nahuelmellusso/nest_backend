@@ -18,12 +18,16 @@ import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { Response } from "express";
 import { UsersService } from "../users/users.service";
+import { RegistrationService } from "@/modules/auth/registration.service";
+import { RegisterOwnerDto } from "@/modules/auth/dto/register-owner.dto";
+import { RegisterTenantUserDto } from "@/modules/auth/dto/register-tenant-user.dto";
 import { CreateUserDto } from "../users/dto/create-user.dto";
 @Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
     private userService: UsersService,
+    private readonly registrationService: RegistrationService,
     private readonly eventEmitter: TypedEventEmitter,
   ) {}
 
@@ -42,18 +46,68 @@ export class AuthController {
     return { success: true };
   }
 
-  @Post("/register")
-  async create(@Body() createUserDto: CreateUserDto) {
+  @Post("register-owner")
+  async registerOwner(
+    @Body() registerOwnerDto: RegisterOwnerDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.registrationService.registerOwner(registerOwnerDto);
+
     this.eventEmitter.emit("user.welcome", {
-      name: createUserDto.name,
-      email: createUserDto.email,
+      name: result.user.name,
+      email: result.user.email,
     });
 
     this.eventEmitter.emit("user.verify-email", {
-      name: createUserDto.name,
-      email: createUserDto.email,
+      name: result.user.name,
+      email: result.user.email,
     });
-    return await this.userService.create(createUserDto);
+
+    res.cookie("access_token", result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  @Post("register")
+  async registerInTenant(
+    @Body() registerTenantUserDto: RegisterTenantUserDto,
+    @Query("tenantSlug") tenantSlug: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.registrationService.registerUserInTenant(
+      registerTenantUserDto,
+      tenantSlug,
+    );
+
+    this.eventEmitter.emit("user.welcome", {
+      name: result.user.name,
+      email: result.user.email,
+    });
+
+    this.eventEmitter.emit("user.verify-email", {
+      name: result.user.name,
+      email: result.user.email,
+    });
+
+    res.cookie("access_token", result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    return {
+      success: true,
+      ...result,
+    };
   }
 
   @Post("logout")
