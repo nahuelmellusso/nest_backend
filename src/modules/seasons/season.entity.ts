@@ -1,6 +1,15 @@
-import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from "sequelize-typescript";
+import {
+  Table,
+  Column,
+  Model,
+  DataType,
+  ForeignKey,
+  BelongsTo,
+  HasMany,
+} from "sequelize-typescript";
 import { Tournament } from "@/modules/tournaments/tournament.entity";
 import { SeasonStatus } from "@/enums/season-status.enum";
+import { Stage } from "@/modules/stages/stage.entity";
 
 @Table({
   tableName: "seasons",
@@ -23,6 +32,13 @@ export class Season extends Model<Season> {
     allowNull: false,
   })
   declare tournamentId: number;
+
+  @Column({
+    field: "tenant_id",
+    type: DataType.INTEGER.UNSIGNED,
+    allowNull: false,
+  })
+  declare tenantId: number;
 
   @Column({
     type: DataType.STRING(150),
@@ -59,4 +75,7 @@ export class Season extends Model<Season> {
 
   @BelongsTo(() => Tournament)
   declare tournament: Tournament;
+
+  @HasMany(() => Stage)
+  declare stages: Stage[];
 }
