@@ -12,8 +12,10 @@ import {
   ForeignKey,
   PrimaryKey,
   AutoIncrement,
+  HasMany,
 } from "sequelize-typescript";
 import { Tenant } from "@/modules/tenants/tenant.entity";
+import { Player } from "@/modules/players/player.entity";
 
 @Table({
   tableName: "users",

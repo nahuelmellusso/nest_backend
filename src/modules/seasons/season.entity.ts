@@ -10,6 +10,7 @@ import {
 import { Tournament } from "@/modules/tournaments/tournament.entity";
 import { SeasonStatus } from "@/enums/season-status.enum";
 import { Stage } from "@/modules/stages/stage.entity";
+import { Match } from "@/modules/matches/match.entity";
 
 @Table({
   tableName: "seasons",

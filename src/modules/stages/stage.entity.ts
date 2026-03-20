@@ -6,9 +6,12 @@ import {
   ForeignKey,
   Model,
   Table,
+  HasMany,
 } from "sequelize-typescript";
 import { StageType } from "@/enums/stage-type.enum";
 import { Season } from "@/modules/seasons/season.entity";
+import { Round } from "@/modules/rounds/round.entity";
+import { Match } from "@/modules/matches/match.entity";
 
 @Table({
   tableName: "stages",
