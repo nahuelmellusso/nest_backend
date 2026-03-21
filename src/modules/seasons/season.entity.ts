@@ -9,8 +9,9 @@ import {
 } from "sequelize-typescript";
 import { Tournament } from "@/modules/tournaments/tournament.entity";
 import { SeasonStatus } from "@/enums/season-status.enum";
+import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
 import { Stage } from "@/modules/stages/stage.entity";
-import { Match } from "@/modules/matches/match.entity";
+import { Standing } from "@/modules/standings/standing.entity";
 
 @Table({
   tableName: "seasons",
@@ -79,4 +80,10 @@ export class Season extends Model<Season> {
 
   @HasMany(() => Stage)
   declare stages: Stage[];
+
+  @HasMany(() => Standing)
+  declare standings: Standing[];
+
+  @HasMany(() => PlayerStat)
+  declare playerStats: PlayerStat[];
 }

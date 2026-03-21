@@ -4,10 +4,13 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Model,
   Table,
 } from "sequelize-typescript";
 import { MatchStatus } from "@/enums/match-status.enum";
+import { MatchEvent } from "@/modules/match-events/match-event.entity";
+import { MatchLineup } from "@/modules/match-lineups/match-lineup.entity";
 import { Round } from "@/modules/rounds/round.entity";
 import { Season } from "@/modules/seasons/season.entity";
 import { Stage } from "@/modules/stages/stage.entity";
@@ -106,4 +109,10 @@ export class Match extends Model<Match> {
 
   @BelongsTo(() => Team, "awayTeamId")
   declare awayTeam: Team;
+
+  @HasMany(() => MatchEvent)
+  declare events: MatchEvent[];
+
+  @HasMany(() => MatchLineup)
+  declare lineups: MatchLineup[];
 }

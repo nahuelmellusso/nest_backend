@@ -4,14 +4,16 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Model,
   Table,
-  HasMany,
 } from "sequelize-typescript";
-import { StageType } from "@/enums/stage-type.enum";
-import { Season } from "@/modules/seasons/season.entity";
-import { Round } from "@/modules/rounds/round.entity";
 import { Match } from "@/modules/matches/match.entity";
+import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
+import { Round } from "@/modules/rounds/round.entity";
+import { Season } from "@/modules/seasons/season.entity";
+import { Standing } from "@/modules/standings/standing.entity";
+import { StageType } from "@/enums/stage-type.enum";
 
 @Table({
   tableName: "stages",
@@ -78,4 +80,16 @@ export class Stage extends Model<Stage> {
 
   @BelongsTo(() => Season)
   declare season: Season;
+
+  @HasMany(() => Round)
+  declare rounds: Round[];
+
+  @HasMany(() => Match)
+  declare matches: Match[];
+
+  @HasMany(() => Standing)
+  declare standings: Standing[];
+
+  @HasMany(() => PlayerStat)
+  declare playerStats: PlayerStat[];
 }

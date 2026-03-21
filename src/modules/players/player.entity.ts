@@ -4,11 +4,12 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Model,
   Table,
-  HasMany,
 } from "sequelize-typescript";
 import { User } from "@/modules/users/user.entity";
+import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
 import { TournamentRegistration } from "@/modules/tournament-registrations/tournament-registration.entity";
 
 @Table({
@@ -58,4 +59,7 @@ export class Player extends Model<Player> {
 
   @BelongsTo(() => User)
   declare user: User;
+
+  @HasMany(() => PlayerStat)
+  declare playerStats: PlayerStat[];
 }

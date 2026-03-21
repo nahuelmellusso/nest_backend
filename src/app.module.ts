@@ -1,27 +1,32 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
+import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
+import { AcceptLanguageResolver, I18nModule, QueryResolver } from "nestjs-i18n";
 import * as path from "path";
+import { TypedEventEmitterModule } from "./event-emitter/typed-event-emitter.module";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { DatabaseModule } from "./database/database.module";
-import { UsersModule } from "./modules/users/users.module";
 import { AuthModule } from "./modules/auth/auth.module";
-import { AcceptLanguageResolver, I18nModule, QueryResolver } from "nestjs-i18n";
 import { EmailModule } from "./modules/email/email.module";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { EventEmitterModule } from "@nestjs/event-emitter";
-import { TypedEventEmitterModule } from "./event-emitter/typed-event-emitter.module";
-import { SequelizeModule, SequelizeModuleOptions } from "@nestjs/sequelize";
-import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
-import { SeasonsModule } from "@/modules/seasons/seasons.module";
-import { TeamsModule } from "@/modules/teams/teams.module";
-import { StagesModule } from "@/modules/stages/stages.module";
-import { RoundsModule } from "@/modules/rounds/rounds.module";
+import { UsersModule } from "./modules/users/users.module";
+import { MatchEventsModule } from "@/modules/match-events/match-events.module";
+import { MatchLineupsModule } from "@/modules/match-lineups/match-lineups.module";
 import { MatchesModule } from "@/modules/matches/matches.module";
 import { PlayersModule } from "@/modules/players/players.module";
-import { TournamentRegistrationsModule } from "@/modules/tournament-registrations/tournament-registrations.module";
-import { Tenant } from "@/modules/tenants/tenant.entity";
+import { PlayerStatsModule } from "@/modules/player-stats/player-stats.module";
+import { RoundsModule } from "@/modules/rounds/rounds.module";
+import { SeasonsModule } from "@/modules/seasons/seasons.module";
+import { StagesModule } from "@/modules/stages/stages.module";
+import { StandingsModule } from "@/modules/standings/standings.module";
+import { Team } from "@/modules/teams/team.entity";
+import { TeamsModule } from "@/modules/teams/teams.module";
 import { TenantDomains } from "@/modules/tenant-domains/tenant-domains.entity";
 import { TenantResolverMiddleware } from "@/modules/tenancy/middleware/tenant-resolver.middleware";
+import { Tenant } from "@/modules/tenants/tenant.entity";
+import { TournamentRegistrationsModule } from "@/modules/tournament-registrations/tournament-registrations.module";
+import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
 
 @Module({
   imports: [
@@ -35,7 +40,11 @@ import { TenantResolverMiddleware } from "@/modules/tenancy/middleware/tenant-re
     RoundsModule,
     MatchesModule,
     PlayersModule,
+    PlayerStatsModule,
     TournamentRegistrationsModule,
+    MatchEventsModule,
+    MatchLineupsModule,
+    StandingsModule,
     I18nModule.forRoot({
       fallbackLanguage: "en",
       loaderOptions: {
