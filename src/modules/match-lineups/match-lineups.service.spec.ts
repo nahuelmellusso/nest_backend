@@ -4,6 +4,8 @@ import { getModelToken } from "@nestjs/sequelize";
 import { MatchLineupRole } from "@/enums/match-lineup-role.enum";
 import { Match } from "@/modules/matches/match.entity";
 import { Player } from "@/modules/players/player.entity";
+import { SeasonTeamPlayer } from "@/modules/season-team-players/season-team-player.entity";
+import { SeasonTeam } from "@/modules/season-teams/season-team.entity";
 import { Team } from "@/modules/teams/team.entity";
 import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
 import { mockTenantContextService } from "@/test/helpers/mock-tenant-context.service";
@@ -17,6 +19,8 @@ describe("MatchLineupsService", () => {
   const mockMatchModel = { findOne: jest.fn() };
   const mockTeamModel = { findOne: jest.fn() };
   const mockPlayerModel = { findOne: jest.fn() };
+  const mockSeasonTeamModel = { findOne: jest.fn() };
+  const mockSeasonTeamPlayerModel = { findOne: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -26,6 +30,8 @@ describe("MatchLineupsService", () => {
     mockMatchModel.findOne.mockReset();
     mockTeamModel.findOne.mockReset();
     mockPlayerModel.findOne.mockReset();
+    mockSeasonTeamModel.findOne.mockReset();
+    mockSeasonTeamPlayerModel.findOne.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -34,6 +40,8 @@ describe("MatchLineupsService", () => {
         { provide: getModelToken(Match), useValue: mockMatchModel },
         { provide: getModelToken(Team), useValue: mockTeamModel },
         { provide: getModelToken(Player), useValue: mockPlayerModel },
+        { provide: getModelToken(SeasonTeam), useValue: mockSeasonTeamModel },
+        { provide: getModelToken(SeasonTeamPlayer), useValue: mockSeasonTeamPlayerModel },
         { provide: TenantContextService, useValue: mockTenantContextService() },
       ],
     }).compile();
@@ -53,11 +61,27 @@ describe("MatchLineupsService", () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
+      mockSeasonTeamModel.findOne.mockResolvedValue({
+        id: 40,
+        tenantId: 1,
+        seasonId: 2,
+        teamId: 20,
+      });
+      mockSeasonTeamPlayerModel.findOne.mockResolvedValue({
+        id: 50,
+        seasonTeamId: 40,
+        playerId: 8,
+        isActive: true,
+        joinedAt: "2026-03-01T00:00:00.000Z",
+        leftAt: null,
+      });
       mockLineupModel.findOne.mockResolvedValue(null);
       mockLineupModel.create.mockResolvedValue({ id: 1, matchId: 4, teamId: 20, playerId: 8 });
 
@@ -86,12 +110,43 @@ describe("MatchLineupsService", () => {
       expect(result.id).toBe(1);
     });
 
+    it("should throw when player is not part of the team roster for the season", async () => {
+      mockMatchModel.findOne.mockResolvedValue({
+        id: 4,
+        tenantId: 1,
+        seasonId: 2,
+        homeTeamId: 20,
+        awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
+      });
+      mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
+      mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
+      mockSeasonTeamModel.findOne.mockResolvedValue({
+        id: 40,
+        tenantId: 1,
+        seasonId: 2,
+        teamId: 20,
+      });
+      mockSeasonTeamPlayerModel.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.create({
+          matchId: 4,
+          teamId: 20,
+          playerId: 8,
+          role: MatchLineupRole.STARTER,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
     it("should throw when team is not part of the match", async () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockTeamModel.findOne.mockResolvedValue({ id: 30, tenantId: 1 });
       mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
@@ -110,11 +165,27 @@ describe("MatchLineupsService", () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
+      mockSeasonTeamModel.findOne.mockResolvedValue({
+        id: 40,
+        tenantId: 1,
+        seasonId: 2,
+        teamId: 20,
+      });
+      mockSeasonTeamPlayerModel.findOne.mockResolvedValue({
+        id: 50,
+        seasonTeamId: 40,
+        playerId: 8,
+        isActive: true,
+        joinedAt: "2026-03-01T00:00:00.000Z",
+        leftAt: null,
+      });
       mockLineupModel.findOne.mockResolvedValueOnce({ id: 99 });
 
       await expect(
@@ -131,11 +202,27 @@ describe("MatchLineupsService", () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
+      mockSeasonTeamModel.findOne.mockResolvedValue({
+        id: 40,
+        tenantId: 1,
+        seasonId: 2,
+        teamId: 20,
+      });
+      mockSeasonTeamPlayerModel.findOne.mockResolvedValue({
+        id: 50,
+        seasonTeamId: 40,
+        playerId: 8,
+        isActive: true,
+        joinedAt: "2026-03-01T00:00:00.000Z",
+        leftAt: null,
+      });
       mockLineupModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 50 });
 
       await expect(
@@ -153,11 +240,27 @@ describe("MatchLineupsService", () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockPlayerModel.findOne.mockResolvedValue({ id: 8, tenantId: 1 });
+      mockSeasonTeamModel.findOne.mockResolvedValue({
+        id: 40,
+        tenantId: 1,
+        seasonId: 2,
+        teamId: 20,
+      });
+      mockSeasonTeamPlayerModel.findOne.mockResolvedValue({
+        id: 50,
+        seasonTeamId: 40,
+        playerId: 8,
+        isActive: true,
+        joinedAt: "2026-03-01T00:00:00.000Z",
+        leftAt: null,
+      });
       mockLineupModel.findOne.mockResolvedValue(null);
 
       await expect(
@@ -178,8 +281,10 @@ describe("MatchLineupsService", () => {
       mockMatchModel.findOne.mockResolvedValue({
         id: 4,
         tenantId: 1,
+        seasonId: 2,
         homeTeamId: 20,
         awayTeamId: 21,
+        matchDate: "2026-03-20T15:00:00.000Z",
       });
       mockLineupModel.findAndCountAll.mockResolvedValue({ rows: [{ id: 1 }], count: 1 });
 

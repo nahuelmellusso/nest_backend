@@ -8,6 +8,8 @@ import { InjectModel } from "@nestjs/sequelize";
 import { Op, WhereOptions } from "sequelize";
 import { Match } from "@/modules/matches/match.entity";
 import { Player } from "@/modules/players/player.entity";
+import { SeasonTeamPlayer } from "@/modules/season-team-players/season-team-player.entity";
+import { SeasonTeam } from "@/modules/season-teams/season-team.entity";
 import { Team } from "@/modules/teams/team.entity";
 import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
 import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
@@ -27,6 +29,10 @@ export class MatchLineupsService extends TenantScopedService {
     private readonly teamModel: typeof Team,
     @InjectModel(Player)
     private readonly playerModel: typeof Player,
+    @InjectModel(SeasonTeam)
+    private readonly seasonTeamModel: typeof SeasonTeam,
+    @InjectModel(SeasonTeamPlayer)
+    private readonly seasonTeamPlayerModel: typeof SeasonTeamPlayer,
     tenantContextService: TenantContextService,
   ) {
     super(tenantContextService);
@@ -193,6 +199,42 @@ export class MatchLineupsService extends TenantScopedService {
 
     if (![match.homeTeamId, match.awayTeamId].includes(team.id)) {
       throw new BadRequestException("teamId must belong to one of the teams in the match");
+    }
+
+    await this.ensurePlayerBelongsToMatchRoster(match, teamId, playerId);
+  }
+
+  private async ensurePlayerBelongsToMatchRoster(match: Match, teamId: number, playerId: number) {
+    const seasonTeam = await this.seasonTeamModel.findOne({
+      where: this.withTenantWhere({ seasonId: match.seasonId, teamId }),
+    });
+
+    if (!seasonTeam) {
+      throw new BadRequestException("The selected team is not registered for the match season");
+    }
+
+    const membership = await this.seasonTeamPlayerModel.findOne({
+      where: this.withTenantWhere({ seasonTeamId: seasonTeam.id, playerId }),
+    });
+
+    if (!membership) {
+      throw new BadRequestException(
+        "playerId must belong to the selected team's roster for the match season",
+      );
+    }
+
+    if (!membership.isActive) {
+      throw new BadRequestException("The selected player roster membership is inactive");
+    }
+
+    const matchTime = new Date(match.matchDate).getTime();
+    const joinedAt = new Date(membership.joinedAt).getTime();
+    const leftAt = membership.leftAt ? new Date(membership.leftAt).getTime() : null;
+
+    if (joinedAt > matchTime || (leftAt !== null && leftAt < matchTime)) {
+      throw new BadRequestException(
+        "playerId must be active in the selected team's roster on the match date",
+      );
     }
   }
 
