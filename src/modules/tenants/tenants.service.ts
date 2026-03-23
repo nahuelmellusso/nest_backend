@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Tenant } from "./tenant.entity";
 import { InjectModel } from "@nestjs/sequelize";
 
@@ -21,6 +21,16 @@ export class TenantsService {
       },
       { transaction },
     );
+  }
+
+  async findById(id: number): Promise<Tenant> {
+    const tenant = await this.tenantRepository.findByPk(id);
+
+    if (!tenant) {
+      throw new NotFoundException(`Tenant with ID ${id} not found`);
+    }
+
+    return tenant;
   }
 
   async findBySlug(slug: string): Promise<Tenant | null> {

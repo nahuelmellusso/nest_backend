@@ -12,21 +12,22 @@ import {
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
-import { UsersService } from "./users.service";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
+import { MAX_AVATAR_BYTES, ALLOWED_MIME } from "@/constants/constants";
+import { TenantsService } from "@/modules/tenants/tenants.service";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { ListUsersQueryDto } from "./dto/list-users.query";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { User } from "./user.entity";
-import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
-import { ListUsersQueryDto } from "./dto/list-users.query";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { MAX_AVATAR_BYTES, ALLOWED_MIME } from "@/constants/constants";
-/* typed-event-emitter.class'; */
+import { UsersService } from "./users.service";
 
 @Controller("users")
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly eventEmitter: TypedEventEmitter,
+    private readonly tenantsService: TenantsService,
   ) {}
 
   @Post("/")
@@ -45,16 +46,18 @@ export class UsersController {
     }),
   )
   async create(@Body() createUserDto: CreateUserDto, @UploadedFile() file?: Express.Multer.File) {
-    this.eventEmitter.emit("user.welcome", {
-      name: createUserDto.name,
-      email: createUserDto.email,
+    const result = await this.usersService.create(createUserDto, file);
+    const tenant = await this.tenantsService.findById(result.data.user.tenantId);
+
+    this.eventEmitter.emit("user.registered", {
+      userId: result.data.user.id,
+      tenantId: result.data.user.tenantId,
+      tenantName: tenant.name,
+      name: result.data.user.name,
+      email: result.data.user.email,
     });
 
-    this.eventEmitter.emit("user.verify-email", {
-      name: createUserDto.name,
-      email: createUserDto.email,
-    });
-    return await this.usersService.create(createUserDto, file);
+    return result;
   }
 
   @Get()
@@ -62,7 +65,7 @@ export class UsersController {
     return this.usersService.findAll(query);
   }
 
-  @Get("/:id")
+  @Get(":id")
   async findById(@Param("id") id: string): Promise<User> {
     return await this.usersService.findById(Number(id));
   }
@@ -71,6 +74,7 @@ export class UsersController {
   async updateUser(@Param("id") id: number, @Body() userData: UpdateUserDto) {
     return this.usersService.update(id, userData);
   }
+
   @Patch(":id")
   @UseInterceptors(
     FileInterceptor("avatar", {

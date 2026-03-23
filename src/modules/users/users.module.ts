@@ -7,9 +7,10 @@ import { databaseProviders } from "@/database/database.providers";
 import { StorageModule } from "@/storage/storage.module";
 import { UploadsModule } from "@/modules/uploads/uploads.module";
 import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { TenantsModule } from "@/modules/tenants/tenants.module";
 
 @Module({
-  imports: [StorageModule, UploadsModule],
+  imports: [StorageModule, UploadsModule, TenantsModule],
   controllers: [UsersController],
   providers: [
     UsersService,

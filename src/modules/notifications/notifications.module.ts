@@ -6,6 +6,8 @@ import { Notification } from "./notification.entity";
 import { NotificationTemplateResolver } from "./notification-template.resolver";
 import { EmailNotificationChannel } from "./channels/email-notification.channel";
 import { InAppNotificationChannel } from "./channels/in-app-notification.channel";
+import { UserRegisteredEmailHandler } from "./handlers/auth/user-registered-email.handler";
+import { UserPasswordResetRequestedHandler } from "./handlers/auth/user-password-reset-requested.handler";
 import { UserRegisteredNotificationHandler } from "./handlers/user-registered-notification.handler";
 
 @Module({
@@ -24,6 +26,8 @@ import { UserRegisteredNotificationHandler } from "./handlers/user-registered-no
     },
     NotificationDispatcher,
     UserRegisteredNotificationHandler,
+    UserRegisteredEmailHandler,
+    UserPasswordResetRequestedHandler,
   ],
   exports: [NotificationDispatcher],
 })

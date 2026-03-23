@@ -1,11 +1,12 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { UsersService } from "../users/users.service";
-import * as bcrypt from "bcrypt";
 import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
+import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
+import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { UsersService } from "../users/users.service";
 import { SignInDto } from "./dto/sign-in.dto";
 import { ConfigService } from "@nestjs/config";
-import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
-import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
 
 @Injectable()
 export class AuthService extends TenantScopedService {
@@ -13,6 +14,7 @@ export class AuthService extends TenantScopedService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly typedEventEmitter: TypedEventEmitter,
     tenantContextService: TenantContextService,
   ) {
     super(tenantContextService);
@@ -37,6 +39,24 @@ export class AuthService extends TenantScopedService {
     const accessToken = await this.jwtService.signAsync(payload);
 
     return { accessToken };
+  }
+
+  async requestPasswordReset(email: string, lang: string): Promise<boolean> {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      return false;
+    }
+
+    this.typedEventEmitter.emit("user.password-reset-requested", {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+      name: user.name,
+      lang,
+    });
+
+    return true;
   }
 
   async verifyEmail(token: string): Promise<boolean> {

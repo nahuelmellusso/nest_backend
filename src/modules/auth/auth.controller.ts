@@ -13,7 +13,6 @@ import {
 import { AuthService } from "./auth.service";
 import { SignInDto } from "./dto/sign-in.dto";
 import { AuthGuard } from "@/guards/auth.guard";
-import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { Response } from "express";
@@ -21,14 +20,13 @@ import { UsersService } from "../users/users.service";
 import { RegistrationService } from "@/modules/auth/registration.service";
 import { RegisterOwnerDto } from "@/modules/auth/dto/register-owner.dto";
 import { RegisterTenantUserDto } from "@/modules/auth/dto/register-tenant-user.dto";
-import { CreateUserDto } from "../users/dto/create-user.dto";
+
 @Controller("auth")
 export class AuthController {
   constructor(
     private authService: AuthService,
     private userService: UsersService,
     private readonly registrationService: RegistrationService,
-    private readonly eventEmitter: TypedEventEmitter,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -53,16 +51,6 @@ export class AuthController {
   ) {
     const result = await this.registrationService.registerOwner(registerOwnerDto);
 
-    this.eventEmitter.emit("user.welcome", {
-      name: result.user.name,
-      email: result.user.email,
-    });
-
-    this.eventEmitter.emit("user.verify-email", {
-      name: result.user.name,
-      email: result.user.email,
-    });
-
     res.cookie("access_token", result.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -86,16 +74,6 @@ export class AuthController {
       registerTenantUserDto,
       tenantSlug,
     );
-
-    this.eventEmitter.emit("user.welcome", {
-      name: result.user.name,
-      email: result.user.email,
-    });
-
-    this.eventEmitter.emit("user.verify-email", {
-      name: result.user.name,
-      email: result.user.email,
-    });
 
     res.cookie("access_token", result.accessToken, {
       httpOnly: true,
@@ -145,24 +123,22 @@ export class AuthController {
 
   @Post("forgot-password")
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto, @Res() res: Response) {
-    const user = await this.userService.findByEmail(forgotPasswordDto.email);
-    if (user) {
-      this.eventEmitter.emit("user.forgot-password", {
-        email: user.email,
-        name: user.name,
-        lang: forgotPasswordDto.lang,
-      });
+    const requested = await this.authService.requestPasswordReset(
+      forgotPasswordDto.email,
+      forgotPasswordDto.lang,
+    );
 
+    if (requested) {
       return res.status(HttpStatus.OK).json({
         status: "success",
         message: "Password reset email sent successfully",
       });
-    } else {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: "error",
-        message: "Failed to send password reset email",
-      });
     }
+
+    return res.status(HttpStatus.BAD_REQUEST).json({
+      status: "error",
+      message: "Failed to send password reset email",
+    });
   }
 
   @Post("reset-password")
@@ -177,11 +153,11 @@ export class AuthController {
         status: "success",
         message: "Password reset successfully",
       });
-    } else {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        status: "error",
-        message: "Password reset failed",
-      });
     }
+
+    return res.status(HttpStatus.BAD_REQUEST).json({
+      status: "error",
+      message: "Password reset failed",
+    });
   }
 }

@@ -1,7 +1,5 @@
-import { EventPayloads } from "./../../interface/event-type.interface";
 import { MailerService } from "@nestjs-modules/mailer";
 import { Injectable } from "@nestjs/common";
-import { OnEvent } from "@nestjs/event-emitter";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 
@@ -22,8 +20,7 @@ export class EmailService {
     await this.mailerService.sendMail(payload);
   }
 
-  @OnEvent("user.welcome")
-  async welcomeEmail(data: EventPayloads["user.welcome"]) {
+  async welcomeEmail(data: { name: string; email: string }) {
     const { email, name } = data;
 
     const subject = `Welcome to Company: ${name}`;
@@ -38,8 +35,7 @@ export class EmailService {
     });
   }
 
-  @OnEvent("user.reset-password")
-  async forgotPasswordEmail(data: EventPayloads["user.reset-password"]) {
+  async forgotPasswordEmail(data: { name: string; email: string; link: string }) {
     const { name, email, link } = data;
 
     const subject = `Company: Reset Password`;
@@ -55,8 +51,7 @@ export class EmailService {
     });
   }
 
-  @OnEvent("user.verify-email")
-  async verifyEmail(data: EventPayloads["user.verify-email"]) {
+  async verifyEmail(data: { name: string; email: string }) {
     const { name, email } = data;
 
     const subject = `Company: Verify Email`;
@@ -82,8 +77,7 @@ export class EmailService {
     });
   }
 
-  @OnEvent("user.forgot-password")
-  async forgotPassword(data: EventPayloads["user.forgot-password"]) {
+  async forgotPassword(data: { name: string; email: string; lang: string }) {
     const { name, email, lang } = data;
 
     const subject = `Company: Forgot Password`;
