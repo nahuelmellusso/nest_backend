@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
 import { UsersService } from "@/modules/users/users.service";
 import { TenantsService } from "@/modules/tenants/tenants.service";
 import { JwtService } from "@nestjs/jwt";
@@ -19,6 +20,7 @@ export class RegistrationService {
     private readonly tenantsService: TenantsService,
     private readonly jwtService: JwtService,
     private readonly sequelize: Sequelize,
+    private readonly typedEventEmitter: TypedEventEmitter,
   ) {}
 
   async registerOwner(registerOwnerDto: RegisterOwnerDto) {
@@ -31,7 +33,7 @@ export class RegistrationService {
     const baseSlug = generateSlug(tenantBaseName);
     const uniqueSlug = await this.tenantsService.generateUniqueSlug(baseSlug);
 
-    return await this.sequelize.transaction(async (transaction) => {
+    const result = await this.sequelize.transaction(async (transaction) => {
       const tenant = await this.tenantsService.create(
         {
           name: tenantBaseName,
@@ -90,6 +92,16 @@ export class RegistrationService {
         },
       };
     });
+
+    this.typedEventEmitter.emit("user.registered", {
+      userId: result.user.id,
+      tenantId: result.user.tenantId,
+      tenantName: result.tenant.name,
+      name: result.user.name,
+      email: result.user.email,
+    });
+
+    return result;
   }
 
   async registerUserInTenant(registerTenantUserDto: RegisterTenantUserDto, tenantSlug: string) {
@@ -128,7 +140,7 @@ export class RegistrationService {
 
     const accessToken = await this.jwtService.signAsync(payload);
 
-    return {
+    const result = {
       accessToken,
       user: {
         id: user.id,
@@ -142,5 +154,15 @@ export class RegistrationService {
         slug: tenant.slug,
       },
     };
+
+    this.typedEventEmitter.emit("user.registered", {
+      userId: result.user.id,
+      tenantId: result.user.tenantId,
+      tenantName: result.tenant.name,
+      name: result.user.name,
+      email: result.user.email,
+    });
+
+    return result;
   }
 }

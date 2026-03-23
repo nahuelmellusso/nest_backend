@@ -13,13 +13,22 @@ export class EmailService {
     private readonly configService: ConfigService,
   ) {}
 
+  async sendTemplate(payload: {
+    to: string;
+    subject: string;
+    template: string;
+    context: Record<string, unknown>;
+  }) {
+    await this.mailerService.sendMail(payload);
+  }
+
   @OnEvent("user.welcome")
   async welcomeEmail(data: EventPayloads["user.welcome"]) {
     const { email, name } = data;
 
     const subject = `Welcome to Company: ${name}`;
 
-    await this.mailerService.sendMail({
+    await this.sendTemplate({
       to: email,
       subject,
       template: "./welcome",
@@ -35,7 +44,7 @@ export class EmailService {
 
     const subject = `Company: Reset Password`;
 
-    await this.mailerService.sendMail({
+    await this.sendTemplate({
       to: email,
       subject,
       template: "./forgot-password",
@@ -62,12 +71,12 @@ export class EmailService {
 
     const link = `${this.configService.get<string>("APP_URL")}/auth/verify?token=${token}`;
 
-    await this.mailerService.sendMail({
+    await this.sendTemplate({
       to: email,
       subject,
       template: "./verify-email",
       context: {
-        link: link,
+        link,
         name,
       },
     });
@@ -89,13 +98,13 @@ export class EmailService {
 
     const link = `${this.configService.get<string>("FRONT_URL")}/${lang}/auth/reset-password?token=${token}`;
 
-    await this.mailerService.sendMail({
+    await this.sendTemplate({
       to: email,
       subject,
       template: "./forgot-password",
       context: {
-        link: link,
-        name: name,
+        link,
+        name,
       },
     });
   }

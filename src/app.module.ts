@@ -14,10 +14,13 @@ import { UsersModule } from "./modules/users/users.module";
 import { MatchEventsModule } from "@/modules/match-events/match-events.module";
 import { MatchLineupsModule } from "@/modules/match-lineups/match-lineups.module";
 import { MatchesModule } from "@/modules/matches/matches.module";
+import { NotificationsModule } from "@/modules/notifications/notifications.module";
 import { PlayersModule } from "@/modules/players/players.module";
 import { PlayerStatsModule } from "@/modules/player-stats/player-stats.module";
 import { RoundsModule } from "@/modules/rounds/rounds.module";
+import { SeasonTeamPlayersModule } from "@/modules/season-team-players/season-team-players.module";
 import { SeasonsModule } from "@/modules/seasons/seasons.module";
+import { SeasonTeamsModule } from "@/modules/season-teams/season-teams.module";
 import { StagesModule } from "@/modules/stages/stages.module";
 import { StandingsModule } from "@/modules/standings/standings.module";
 import { Team } from "@/modules/teams/team.entity";
@@ -41,10 +44,13 @@ import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
     MatchesModule,
     PlayersModule,
     PlayerStatsModule,
+    SeasonTeamsModule,
+    SeasonTeamPlayersModule,
     TournamentRegistrationsModule,
     MatchEventsModule,
     MatchLineupsModule,
     StandingsModule,
+    NotificationsModule,
     I18nModule.forRoot({
       fallbackLanguage: "en",
       loaderOptions: {

@@ -1,4 +1,5 @@
 import { JwtService } from "@nestjs/jwt";
+import { TypedEventEmitter } from "@/event-emitter/typed-event-emitter.class";
 import { RegistrationService } from "@/modules/auth/registration.service";
 import { TenantsService } from "@/modules/tenants/tenants.service";
 import { UsersService } from "@/modules/users/users.service";
@@ -12,6 +13,7 @@ export const createRegistrationServiceTestSetup = (): {
   usersService: jest.Mocked<UsersService>;
   tenantsService: jest.Mocked<TenantsService>;
   jwtService: jest.Mocked<JwtService>;
+  typedEventEmitter: jest.Mocked<TypedEventEmitter>;
   sequelize: {
     transaction: jest.Mock;
   };
@@ -34,11 +36,16 @@ export const createRegistrationServiceTestSetup = (): {
     signAsync: jest.fn(),
   } as unknown as jest.Mocked<JwtService>;
 
+  const typedEventEmitter = {
+    emit: jest.fn(),
+  } as unknown as jest.Mocked<TypedEventEmitter>;
+
   const service = new RegistrationService(
     usersService,
     tenantsService,
     jwtService,
     sequelizeMock as any,
+    typedEventEmitter,
   );
 
   return {
@@ -46,6 +53,7 @@ export const createRegistrationServiceTestSetup = (): {
     usersService,
     tenantsService,
     jwtService,
+    typedEventEmitter,
     sequelize: sequelizeMock,
     transactionMock,
   };
