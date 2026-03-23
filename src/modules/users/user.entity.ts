@@ -14,6 +14,7 @@ import {
   AutoIncrement,
   HasMany,
 } from "sequelize-typescript";
+import { Notification } from "@/modules/notifications/notification.entity";
 import { Tenant } from "@/modules/tenants/tenant.entity";
 import { Player } from "@/modules/players/player.entity";
 
@@ -127,4 +128,7 @@ export class User extends Model<User> {
     type: DataType.DATE,
   })
   deletedAt: Date;
+
+  @HasMany(() => Notification)
+  notifications: Notification[];
 }

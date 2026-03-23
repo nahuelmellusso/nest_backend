@@ -1,5 +1,6 @@
 import { AllowNull, Column, DataType, Default, HasMany, Model, Table } from "sequelize-typescript";
 import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
+import { SeasonTeam } from "@/modules/season-teams/season-team.entity";
 import { Standing } from "@/modules/standings/standing.entity";
 
 @Table({
@@ -95,4 +96,7 @@ export class Team extends Model<Team> {
 
   @HasMany(() => PlayerStat)
   declare playerStats: PlayerStat[];
+
+  @HasMany(() => SeasonTeam)
+  declare seasonTeams: SeasonTeam[];
 }

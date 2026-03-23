@@ -10,6 +10,7 @@ import {
 import { Tournament } from "@/modules/tournaments/tournament.entity";
 import { SeasonStatus } from "@/enums/season-status.enum";
 import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
+import { SeasonTeam } from "@/modules/season-teams/season-team.entity";
 import { Stage } from "@/modules/stages/stage.entity";
 import { Standing } from "@/modules/standings/standing.entity";
 
@@ -86,4 +87,7 @@ export class Season extends Model<Season> {
 
   @HasMany(() => PlayerStat)
   declare playerStats: PlayerStat[];
+
+  @HasMany(() => SeasonTeam)
+  declare seasonTeams: SeasonTeam[];
 }

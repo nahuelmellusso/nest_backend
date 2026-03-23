@@ -4,9 +4,11 @@ import {
   DataType,
   Default,
   ForeignKey,
+  HasMany,
   Model,
   Table,
 } from "sequelize-typescript";
+import { SeasonTeamPlayer } from "@/modules/season-team-players/season-team-player.entity";
 import { SeasonTeamStatus } from "@/enums/season-team-status.enum";
 import { Season } from "@/modules/seasons/season.entity";
 import { Team } from "@/modules/teams/team.entity";
@@ -65,4 +67,7 @@ export class SeasonTeam extends Model<SeasonTeam> {
 
   @BelongsTo(() => Team)
   declare team: Team;
+
+  @HasMany(() => SeasonTeamPlayer)
+  declare rosterPlayers: SeasonTeamPlayer[];
 }

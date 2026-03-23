@@ -10,6 +10,7 @@ import {
 } from "sequelize-typescript";
 import { User } from "@/modules/users/user.entity";
 import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
+import { SeasonTeamPlayer } from "@/modules/season-team-players/season-team-player.entity";
 import { TournamentRegistration } from "@/modules/tournament-registrations/tournament-registration.entity";
 
 @Table({
@@ -62,4 +63,7 @@ export class Player extends Model<Player> {
 
   @HasMany(() => PlayerStat)
   declare playerStats: PlayerStat[];
+
+  @HasMany(() => SeasonTeamPlayer)
+  declare seasonTeamPlayers: SeasonTeamPlayer[];
 }
