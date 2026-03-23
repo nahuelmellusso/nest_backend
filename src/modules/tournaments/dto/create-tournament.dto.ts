@@ -1,14 +1,16 @@
 import {
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
   MaxLength,
+  Min,
 } from "class-validator";
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import { TournamentType } from "@/enums/tournament-type.enum";
 
 export class CreateTournamentDto {
@@ -27,6 +29,11 @@ export class CreateTournamentDto {
   @Transform(({ value }) => value?.trim().toLowerCase())
   slug: string;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  sportId: number;
+
   @IsEnum(TournamentType)
   type: TournamentType;
 
@@ -39,6 +46,7 @@ export class CreateTournamentDto {
   country: string;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isActive?: boolean;
 }

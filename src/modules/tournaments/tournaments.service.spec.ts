@@ -7,15 +7,16 @@ jest.mock("@/modules/tournaments/tournamentImage.service", () => {
   };
 });
 
-import { ConflictException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
+import { ConflictException, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/sequelize";
 import { Op } from "sequelize";
-import { TournamentsService } from "./tournaments.service";
-import { Tournament } from "./tournament.entity";
-import { TournamentImageService } from "@/modules/tournaments/tournamentImage.service";
+import { SportsService } from "@/modules/sports/sports.service";
 import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
 import { mockTenantContextService } from "@/test/helpers/mock-tenant-context.service";
+import { TournamentImageService } from "@/modules/tournaments/tournamentImage.service";
+import { Tournament } from "./tournament.entity";
+import { TournamentsService } from "./tournaments.service";
 
 describe("TournamentsService", () => {
   let service: TournamentsService;
@@ -32,6 +33,10 @@ describe("TournamentsService", () => {
   const mockTournamentImageService = {
     upload: jest.fn(),
     deleteImageIfExists: jest.fn(),
+  };
+
+  const mockSportsService = {
+    findById: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -52,6 +57,10 @@ describe("TournamentsService", () => {
           useValue: mockTournamentImageService,
         },
         {
+          provide: SportsService,
+          useValue: mockSportsService,
+        },
+        {
           provide: TenantContextService,
           useValue: tenantContextService,
         },
@@ -69,16 +78,19 @@ describe("TournamentsService", () => {
     it("should create a tournament with generated slug", async () => {
       const dto = {
         name: "Copa Libertadores",
+        sportId: 4,
         type: "league",
         country: "AR",
         isActive: true,
       } as any;
 
       mockTournamentModel.findAll.mockResolvedValue([]);
+      mockSportsService.findById.mockResolvedValue({ id: 4, slug: "football" });
       mockTournamentModel.create.mockResolvedValue({
         id: 1,
         name: dto.name,
         slug: "copa-libertadores",
+        sportId: dto.sportId,
         type: dto.type,
         country: dto.country,
         isActive: dto.isActive,
@@ -88,6 +100,7 @@ describe("TournamentsService", () => {
       const result = await service.create(dto);
 
       expect(tenantContextService.getTenantId).toHaveBeenCalled();
+      expect(mockSportsService.findById).toHaveBeenCalledWith(4);
 
       expect(mockTournamentModel.findAll).toHaveBeenCalledWith({
         where: {
@@ -102,6 +115,7 @@ describe("TournamentsService", () => {
       expect(mockTournamentModel.create).toHaveBeenCalledWith({
         name: dto.name,
         slug: "copa-libertadores",
+        sportId: 4,
         type: dto.type,
         country: dto.country,
         isActive: true,
@@ -114,6 +128,7 @@ describe("TournamentsService", () => {
     it("should create a tournament with incremental slug if base slug already exists", async () => {
       const dto = {
         name: "Copa Libertadores",
+        sportId: 4,
         type: "league",
         country: "AR",
       } as any;
@@ -122,17 +137,20 @@ describe("TournamentsService", () => {
         { slug: "copa-libertadores" },
         { slug: "copa-libertadores-1" },
       ]);
+      mockSportsService.findById.mockResolvedValue({ id: 4, slug: "football" });
 
       mockTournamentModel.create.mockResolvedValue({
         id: 1,
         name: dto.name,
         slug: "copa-libertadores-2",
+        sportId: 4,
         tenantId: 1,
       });
 
       const result = await service.create(dto);
 
       expect(tenantContextService.getTenantId).toHaveBeenCalled();
+      expect(mockSportsService.findById).toHaveBeenCalledWith(4);
 
       expect(mockTournamentModel.findAll).toHaveBeenCalledWith({
         where: {
@@ -147,6 +165,7 @@ describe("TournamentsService", () => {
       expect(mockTournamentModel.create).toHaveBeenCalledWith(
         expect.objectContaining({
           slug: "copa-libertadores-2",
+          sportId: 4,
           tenantId: 1,
         }),
       );
@@ -157,6 +176,7 @@ describe("TournamentsService", () => {
     it("should upload image if file is provided", async () => {
       const dto = {
         name: "Premier League",
+        sportId: 4,
         type: "league",
         country: "EN",
       } as any;
@@ -177,6 +197,7 @@ describe("TournamentsService", () => {
       };
 
       mockTournamentModel.findAll.mockResolvedValue([]);
+      mockSportsService.findById.mockResolvedValue({ id: 4, slug: "football" });
       mockTournamentModel.create.mockResolvedValue(createdTournament);
       mockTournamentImageService.upload.mockResolvedValue({
         key: "tournaments/10/image.png",
@@ -192,6 +213,7 @@ describe("TournamentsService", () => {
     it("should throw InternalServerErrorException when tenant context is missing", async () => {
       const dto = {
         name: "Copa Libertadores",
+        sportId: 4,
         type: "league",
         country: "AR",
       } as any;
@@ -240,6 +262,7 @@ describe("TournamentsService", () => {
     });
 
     it("should apply filters correctly", async () => {
+      mockSportsService.findById.mockResolvedValue({ id: 4, slug: "football" });
       mockTournamentModel.findAndCountAll.mockResolvedValue({
         rows: [],
         count: 0,
@@ -249,17 +272,20 @@ describe("TournamentsService", () => {
         page: 2,
         limit: 5,
         search: "liber",
+        sportId: 4,
         type: "league",
         country: "ar",
         isActive: true,
       } as any);
 
       expect(tenantContextService.getTenantId).toHaveBeenCalled();
+      expect(mockSportsService.findById).toHaveBeenCalledWith(4);
 
       expect(mockTournamentModel.findAndCountAll).toHaveBeenCalledWith({
         where: {
           tenantId: 1,
           [Op.or]: [{ name: { [Op.like]: "%liber%" } }, { slug: { [Op.like]: "%liber%" } }],
+          sportId: 4,
           type: "league",
           country: "AR",
           isActive: true,
@@ -323,6 +349,7 @@ describe("TournamentsService", () => {
   describe("update", () => {
     it("should update tournament fields", async () => {
       const updateDto = {
+        sportId: 5,
         name: "Updated Tournament",
         type: "cup",
         isActive: false,
@@ -339,11 +366,14 @@ describe("TournamentsService", () => {
         }),
       };
 
+      mockSportsService.findById.mockResolvedValue({ id: 5, slug: "basketball" });
       jest.spyOn(service, "findById").mockResolvedValue(updatedTournament as any);
 
       const result = await service.update(1, updateDto);
 
+      expect(mockSportsService.findById).toHaveBeenCalledWith(5);
       expect(updatedTournament.update).toHaveBeenCalledWith({
+        sportId: 5,
         name: "Updated Tournament",
         type: "cup",
         isActive: false,

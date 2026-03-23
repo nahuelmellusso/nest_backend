@@ -21,6 +21,7 @@ import { RoundsModule } from "@/modules/rounds/rounds.module";
 import { SeasonTeamPlayersModule } from "@/modules/season-team-players/season-team-players.module";
 import { SeasonsModule } from "@/modules/seasons/seasons.module";
 import { SeasonTeamsModule } from "@/modules/season-teams/season-teams.module";
+import { SportsModule } from "@/modules/sports/sports.module";
 import { StagesModule } from "@/modules/stages/stages.module";
 import { StandingsModule } from "@/modules/standings/standings.module";
 import { Team } from "@/modules/teams/team.entity";
@@ -37,6 +38,7 @@ import { TournamentsModule } from "@/modules/tournaments/tournaments.module";
     UsersModule,
     AuthModule,
     SeasonsModule,
+    SportsModule,
     TournamentsModule,
     TeamsModule,
     StagesModule,

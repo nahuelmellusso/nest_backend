@@ -13,6 +13,7 @@ import { PlayerStat } from "@/modules/player-stats/player-stat.entity";
 import { SeasonTeam } from "@/modules/season-teams/season-team.entity";
 import { Stage } from "@/modules/stages/stage.entity";
 import { Standing } from "@/modules/standings/standing.entity";
+import { SeasonRuleset } from "./types/season-ruleset.types";
 
 @Table({
   tableName: "seasons",
@@ -75,6 +76,13 @@ export class Season extends Model<Season> {
     defaultValue: SeasonStatus.DRAFT,
   })
   declare status: SeasonStatus;
+
+  @Column({
+    type: DataType.JSON,
+    allowNull: true,
+    defaultValue: null,
+  })
+  declare ruleset: SeasonRuleset | null;
 
   @BelongsTo(() => Tournament)
   declare tournament: Tournament;

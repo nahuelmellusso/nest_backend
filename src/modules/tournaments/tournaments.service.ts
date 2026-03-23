@@ -9,12 +9,15 @@ import { TournamentImageService } from "@/modules/tournaments/tournamentImage.se
 import { generateSlug } from "@/utils/slug.util";
 import { TenantScopedService } from "@/modules/tenancy/services/tenant-scoped.service";
 import { TenantContextService } from "@/modules/tenancy/services/tenant-context.service";
+import { SportsService } from "@/modules/sports/sports.service";
+
 @Injectable()
 export class TournamentsService extends TenantScopedService {
   constructor(
     @InjectModel(Tournament)
     private readonly tournamentModel: typeof Tournament,
     private readonly tournamentImageService: TournamentImageService,
+    private readonly sportsService: SportsService,
     tenantContextService: TenantContextService,
   ) {
     super(tenantContextService);
@@ -27,10 +30,12 @@ export class TournamentsService extends TenantScopedService {
     const slug = await this.generateUniqueSlug(createTournamentDto.name);
 
     const tenantId = this.getCurrentTenantId();
+    await this.sportsService.findById(createTournamentDto.sportId);
 
     const tournament = await this.tournamentModel.create({
       name: createTournamentDto.name,
       slug,
+      sportId: createTournamentDto.sportId,
       type: createTournamentDto.type,
       country: createTournamentDto.country,
       isActive: createTournamentDto.isActive ?? true,
@@ -58,6 +63,11 @@ export class TournamentsService extends TenantScopedService {
         { name: { [Op.like]: `%${query.search}%` } },
         { slug: { [Op.like]: `%${query.search}%` } },
       ];
+    }
+
+    if (query.sportId !== undefined) {
+      await this.sportsService.findById(query.sportId);
+      where.sportId = query.sportId;
     }
 
     if (query.type) {
@@ -131,6 +141,10 @@ export class TournamentsService extends TenantScopedService {
       }
     }
 
+    if (updateTournamentDto.sportId !== undefined) {
+      await this.sportsService.findById(updateTournamentDto.sportId);
+    }
+
     const payload: Partial<Tournament> = {};
 
     if (updateTournamentDto.name !== undefined) {
@@ -139,6 +153,10 @@ export class TournamentsService extends TenantScopedService {
 
     if (updateTournamentDto.slug !== undefined) {
       payload.slug = updateTournamentDto.slug;
+    }
+
+    if (updateTournamentDto.sportId !== undefined) {
+      payload.sportId = updateTournamentDto.sportId;
     }
 
     if (updateTournamentDto.type !== undefined) {

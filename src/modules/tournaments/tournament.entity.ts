@@ -7,9 +7,12 @@ import {
   AllowNull,
   Unique,
   HasMany,
+  ForeignKey,
+  BelongsTo,
 } from "sequelize-typescript";
 import { TournamentType } from "@/enums/tournament-type.enum";
 import { Season } from "@/modules/seasons/season.entity";
+import { Sport } from "@/modules/sports/sport.entity";
 
 @Table({
   tableName: "tournaments",
@@ -20,6 +23,17 @@ import { Season } from "@/modules/seasons/season.entity";
 export class Tournament extends Model<Tournament> {
   @HasMany(() => Season)
   declare seasons: Season[];
+
+  @ForeignKey(() => Sport)
+  @Column({
+    type: DataType.INTEGER.UNSIGNED,
+    allowNull: true,
+    field: "sport_id",
+  })
+  declare sportId: number | null;
+
+  @BelongsTo(() => Sport)
+  declare sport: Sport;
 
   @Column({
     type: DataType.INTEGER.UNSIGNED,

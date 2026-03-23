@@ -9,6 +9,8 @@ import { InjectModel } from "@nestjs/sequelize";
 import { TournamentsService } from "@/modules/tournaments/tournaments.service";
 import { CreateSeasonDto } from "@/modules/seasons/dto/create-season.dto";
 import { UpdateSeasonDto } from "@/modules/seasons/dto/update-season.dto";
+import { SportsService } from "@/modules/sports/sports.service";
+import { normalizeSeasonRuleset } from "./season-ruleset.util";
 
 @Injectable()
 export class SeasonsService {
@@ -16,10 +18,11 @@ export class SeasonsService {
     @InjectModel(Season)
     private readonly seasonModel: typeof Season,
     private readonly tournamentsService: TournamentsService,
+    private readonly sportsService: SportsService,
   ) {}
 
   async create(createSeasonDto: CreateSeasonDto): Promise<Season> {
-    await this.tournamentsService.findById(createSeasonDto.tournamentId);
+    const tournament = await this.tournamentsService.findById(createSeasonDto.tournamentId);
 
     if (new Date(createSeasonDto.endDate) < new Date(createSeasonDto.startDate)) {
       throw new BadRequestException("endDate must be greater than startDate");
@@ -37,7 +40,12 @@ export class SeasonsService {
       throw new ConflictException("Season with same name and year already exists");
     }
 
-    return this.seasonModel.create(createSeasonDto);
+    const sportSlug = await this.resolveTournamentSportSlug(tournament.sportId);
+
+    return this.seasonModel.create({
+      ...createSeasonDto,
+      ruleset: normalizeSeasonRuleset(createSeasonDto.ruleset, sportSlug),
+    });
   }
 
   async findAll(): Promise<Season[]> {
@@ -56,8 +64,26 @@ export class SeasonsService {
 
   async update(id: number, dto: UpdateSeasonDto): Promise<Season> {
     const season = await this.findById(id);
+    const nextStartDate = dto.startDate ?? season.startDate;
+    const nextEndDate = dto.endDate ?? season.endDate;
 
-    await season.update(dto);
+    if (new Date(nextEndDate) < new Date(nextStartDate)) {
+      throw new BadRequestException("endDate must be greater than startDate");
+    }
+
+    let ruleset = season.ruleset;
+
+    if (dto.ruleset !== undefined) {
+      const tournament = await this.tournamentsService.findById(season.tournamentId);
+      const sportSlug = await this.resolveTournamentSportSlug(tournament.sportId);
+      const currentSport = season.ruleset?.sport;
+      ruleset = normalizeSeasonRuleset(dto.ruleset, currentSport ?? sportSlug);
+    }
+
+    await season.update({
+      ...dto,
+      ...(dto.ruleset !== undefined ? { ruleset } : {}),
+    });
 
     return season;
   }
@@ -66,5 +92,14 @@ export class SeasonsService {
     const season = await this.findById(id);
 
     await season.destroy();
+  }
+
+  private async resolveTournamentSportSlug(sportId?: number | null): Promise<string | undefined> {
+    if (!sportId) {
+      return undefined;
+    }
+
+    const sport = await this.sportsService.findById(sportId);
+    return sport.slug;
   }
 }

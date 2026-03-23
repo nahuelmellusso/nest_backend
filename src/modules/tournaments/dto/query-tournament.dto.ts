@@ -1,11 +1,17 @@
 import { Type } from "class-transformer";
-import { IsBoolean, IsEnum, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 import { TournamentType } from "@/enums/tournament-type.enum";
 
 export class QueryTournamentDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  sportId?: number;
 
   @IsOptional()
   @IsEnum(TournamentType)

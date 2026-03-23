@@ -49,7 +49,7 @@ describe("StandingsService", () => {
 
   describe("create", () => {
     it("should create a standing row when hierarchy and stats are valid", async () => {
-      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1 });
+      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1, ruleset: null });
       mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockStandingModel.findOne.mockResolvedValue(null);
@@ -92,7 +92,7 @@ describe("StandingsService", () => {
     });
 
     it("should throw when stage does not belong to the season", async () => {
-      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1 });
+      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1, ruleset: null });
       mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 999 });
 
       await expect(
@@ -114,7 +114,7 @@ describe("StandingsService", () => {
     });
 
     it("should throw when stats are inconsistent", async () => {
-      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1 });
+      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1, ruleset: null });
       mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
 
@@ -137,7 +137,7 @@ describe("StandingsService", () => {
     });
 
     it("should throw when the team already has a standing row in the stage", async () => {
-      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1 });
+      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1, ruleset: null });
       mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockStandingModel.findOne.mockResolvedValueOnce({ id: 12 });
@@ -161,7 +161,7 @@ describe("StandingsService", () => {
     });
 
     it("should throw when the position is already assigned in the stage", async () => {
-      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1 });
+      mockSeasonModel.findOne.mockResolvedValue({ id: 5, tenantId: 1, ruleset: null });
       mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
       mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
       mockStandingModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 13 });
@@ -182,6 +182,83 @@ describe("StandingsService", () => {
           position: 1,
         } as any),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it("should honor custom season scoring rules", async () => {
+      mockSeasonModel.findOne.mockResolvedValue({
+        id: 5,
+        tenantId: 1,
+        ruleset: {
+          sport: "basketball",
+          standings: {
+            winPoints: 2,
+            drawPoints: 0,
+            lossPoints: 1,
+          },
+          match: {
+            allowDraws: false,
+          },
+        },
+      });
+      mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
+      mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
+      mockStandingModel.findOne.mockResolvedValue(null);
+      mockStandingModel.create.mockResolvedValue({ id: 2, stageId: 8, teamId: 20 });
+
+      const result = await service.create({
+        seasonId: 5,
+        stageId: 8,
+        teamId: 20,
+        played: 5,
+        wins: 3,
+        draws: 0,
+        losses: 2,
+        goalsFor: 400,
+        goalsAgainst: 370,
+        goalDifference: 30,
+        points: 8,
+        position: 2,
+        lastFiveForm: "WLWLW",
+      } as any);
+
+      expect(result.id).toBe(2);
+    });
+
+    it("should reject draws when the season ruleset disallows them", async () => {
+      mockSeasonModel.findOne.mockResolvedValue({
+        id: 5,
+        tenantId: 1,
+        ruleset: {
+          sport: "basketball",
+          standings: {
+            winPoints: 2,
+            drawPoints: 0,
+            lossPoints: 1,
+          },
+          match: {
+            allowDraws: false,
+          },
+        },
+      });
+      mockStageModel.findOne.mockResolvedValue({ id: 8, tenantId: 1, seasonId: 5 });
+      mockTeamModel.findOne.mockResolvedValue({ id: 20, tenantId: 1 });
+
+      await expect(
+        service.create({
+          seasonId: 5,
+          stageId: 8,
+          teamId: 20,
+          played: 5,
+          wins: 3,
+          draws: 1,
+          losses: 1,
+          goalsFor: 400,
+          goalsAgainst: 370,
+          goalDifference: 30,
+          points: 8,
+          position: 2,
+        } as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

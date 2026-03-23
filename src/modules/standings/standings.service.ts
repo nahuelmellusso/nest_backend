@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/sequelize";
 import { Op, WhereOptions } from "sequelize";
+import { getSeasonRuleset } from "@/modules/seasons/season-ruleset.util";
 import { Season } from "@/modules/seasons/season.entity";
 import { Stage } from "@/modules/stages/stage.entity";
 import { Team } from "@/modules/teams/team.entity";
@@ -33,9 +34,9 @@ export class StandingsService extends TenantScopedService {
   }
 
   async create(createDto: CreateStandingDto): Promise<Standing> {
-    await this.validateHierarchy(createDto.seasonId, createDto.stageId);
+    const season = await this.validateHierarchy(createDto.seasonId, createDto.stageId);
     await this.findTenantTeam(createDto.teamId);
-    this.validateStats(createDto);
+    this.validateStats(season, createDto);
     await this.ensureUniqueTeamStanding(createDto.stageId, createDto.teamId);
     await this.ensureUniquePosition(createDto.stageId, createDto.position);
 
@@ -50,7 +51,7 @@ export class StandingsService extends TenantScopedService {
       losses: this.toNonNegativeNumber(createDto.losses),
       goalsFor: this.toNonNegativeNumber(createDto.goalsFor),
       goalsAgainst: this.toNonNegativeNumber(createDto.goalsAgainst),
-      goalDifference: this.toNumber(createDto.goalDifference, 0),
+      goalDifference: this.toInteger(createDto.goalDifference, 0),
       points: this.toNonNegativeNumber(createDto.points),
       position: this.toPositiveNumber(createDto.position, 1),
       lastFiveForm: this.normalizeForm(createDto.lastFiveForm),
@@ -115,7 +116,7 @@ export class StandingsService extends TenantScopedService {
         : standing.goalsAgainst;
     const targetGoalDifference =
       updateDto.goalDifference !== undefined
-        ? this.toNumber(updateDto.goalDifference, 0)
+        ? this.toInteger(updateDto.goalDifference, 0)
         : standing.goalDifference;
     const targetPoints =
       updateDto.points !== undefined ? this.toNonNegativeNumber(updateDto.points) : standing.points;
@@ -124,9 +125,9 @@ export class StandingsService extends TenantScopedService {
         ? this.toPositiveNumber(updateDto.position, 0)
         : standing.position;
 
-    await this.validateHierarchy(targetSeasonId, targetStageId);
+    const season = await this.validateHierarchy(targetSeasonId, targetStageId);
     await this.findTenantTeam(targetTeamId);
-    this.validateStats({
+    this.validateStats(season, {
       played: targetPlayed,
       wins: targetWins,
       draws: targetDraws,
@@ -221,26 +222,33 @@ export class StandingsService extends TenantScopedService {
     };
   }
 
-  private async validateHierarchy(seasonId: number, stageId: number): Promise<void> {
+  private async validateHierarchy(seasonId: number, stageId: number): Promise<Season> {
     const season = await this.findTenantSeason(seasonId);
     const stage = await this.findTenantStage(stageId);
 
     if (stage.seasonId !== season.id) {
       throw new BadRequestException("Stage does not belong to the provided season");
     }
+
+    return season;
   }
 
-  private validateStats(payload: {
-    played: number;
-    wins: number;
-    draws: number;
-    losses: number;
-    goalsFor: number;
-    goalsAgainst: number;
-    goalDifference: number;
-    points: number;
-    lastFiveForm?: string | null;
-  }) {
+  private validateStats(
+    season: Season,
+    payload: {
+      played: number;
+      wins: number;
+      draws: number;
+      losses: number;
+      goalsFor: number;
+      goalsAgainst: number;
+      goalDifference: number;
+      points: number;
+      lastFiveForm?: string | null;
+    },
+  ) {
+    const ruleset = getSeasonRuleset(season.ruleset);
+
     if (payload.wins + payload.draws + payload.losses !== payload.played) {
       throw new BadRequestException("played must equal wins + draws + losses");
     }
@@ -249,8 +257,19 @@ export class StandingsService extends TenantScopedService {
       throw new BadRequestException("goalDifference must equal goalsFor - goalsAgainst");
     }
 
-    if (payload.points !== payload.wins * 3 + payload.draws) {
-      throw new BadRequestException("points must equal wins * 3 + draws");
+    if (!ruleset.match.allowDraws && payload.draws > 0) {
+      throw new BadRequestException("draws are not allowed by the season ruleset");
+    }
+
+    const expectedPoints =
+      payload.wins * ruleset.standings.winPoints +
+      payload.draws * ruleset.standings.drawPoints +
+      payload.losses * ruleset.standings.lossPoints;
+
+    if (payload.points !== expectedPoints) {
+      throw new BadRequestException(
+        "points must match the configured season ruleset scoring system",
+      );
     }
 
     const normalizedForm = this.normalizeForm(payload.lastFiveForm);
@@ -324,8 +343,24 @@ export class StandingsService extends TenantScopedService {
   }
 
   private normalizeForm(value?: string | null): string | null {
-    const normalized = value?.trim().toUpperCase();
-    return normalized ? normalized : null;
+    if (value === undefined || value === null) {
+      return null;
+    }
+
+    const normalized = value
+      .trim()
+      .toUpperCase()
+      .replace(/[^WDL]/g, "");
+
+    if (!normalized) {
+      return null;
+    }
+
+    if (normalized.length > 5) {
+      throw new BadRequestException("lastFiveForm cannot exceed 5 characters");
+    }
+
+    return normalized;
   }
 
   private normalizeNullableString(value?: string | null): string | null {
@@ -333,23 +368,18 @@ export class StandingsService extends TenantScopedService {
     return normalized ? normalized : null;
   }
 
-  private toNumber(value: number | string | undefined, fallback: number): number {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
   private toPositiveNumber(value: number | string | undefined, fallback: number): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }
 
-  private toNonNegativeNumber(value: number | string | undefined): number {
+  private toNonNegativeNumber(value: number | string | undefined, fallback = 0): number {
     const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  }
 
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      throw new BadRequestException("Invalid numeric value");
-    }
-
-    return parsed;
+  private toInteger(value: number | string | undefined, fallback: number): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
   }
 }
